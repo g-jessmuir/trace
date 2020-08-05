@@ -27,6 +27,11 @@ func (v Vec) Div(f float32) Vec {
 	return Vec{v.X / f, v.Y / f, v.Z / f}
 }
 
+// VMul multiplies v by o component-wise and returns the result
+func (v Vec) VMul(o Vec) Vec {
+	return Vec{v.X * o.X, v.Y * o.Y, v.Z * o.Z}
+}
+
 // VDiv divides v by o component-wise and returns the result
 func (v Vec) VDiv(o Vec) Vec {
 	return Vec{v.X / o.X, v.Y / o.Y, v.Z / o.Z}
@@ -93,4 +98,18 @@ func (v Vec) Unit() Vec {
 
 func (v Vec) Dot(o Vec) float32 {
 	return v.X*o.X + v.Y*o.Y + v.Z*o.Z
+}
+
+func (v Vec) Reflect(n Vec) Vec {
+	return v.Sub(n.Mul(2 * v.Dot(n)))
+}
+
+func (v Vec) Refract(n Vec, niByNt float32) (Vec, bool) {
+	uv := v.Unit()
+	dt := uv.Dot(n)
+	discriminant := 1 - niByNt*niByNt*(1-dt*dt)
+	if discriminant > 0 {
+		return uv.Sub(n.Mul(dt)).Mul(niByNt).Sub(n.Mul(Sqrt32(discriminant))), true
+	}
+	return Vec{-1, -1, -1}, false
 }

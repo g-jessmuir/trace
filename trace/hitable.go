@@ -6,6 +6,7 @@ type HitRecord struct {
 	T float32
 	P Vec
 	N Vec
+	M Mat
 }
 
 type Hitable interface {
@@ -17,6 +18,7 @@ type HitList []Hitable
 type Sphere struct {
 	Center Vec
 	Radius float32
+	M      Mat
 }
 
 func (hs HitList) Hit(r Ray, tMin float32, tMax float32, rec *HitRecord) bool {
@@ -34,9 +36,9 @@ func (hs HitList) Hit(r Ray, tMin float32, tMax float32, rec *HitRecord) bool {
 }
 
 func (s Sphere) Hit(r Ray, tMin float32, tMax float32, rec *HitRecord) bool {
-	oc := r.Origin().Sub(s.Center)
-	a := r.Dir().Dot(r.Dir())
-	b := oc.Dot(r.Dir())
+	oc := r.Origin.Sub(s.Center)
+	a := r.Dir.Dot(r.Dir)
+	b := oc.Dot(r.Dir)
 	c := oc.Dot(oc) - s.Radius*s.Radius
 	discriminant := b*b - a*c
 	if discriminant > 0 {
@@ -45,6 +47,7 @@ func (s Sphere) Hit(r Ray, tMin float32, tMax float32, rec *HitRecord) bool {
 			rec.T = p
 			rec.P = r.PatT(rec.T)
 			rec.N = rec.P.Sub(s.Center).Div(s.Radius)
+			rec.M = s.M
 			return true
 		}
 		p = (-b + float32(math.Sqrt(float64(discriminant)))) / a
@@ -52,6 +55,7 @@ func (s Sphere) Hit(r Ray, tMin float32, tMax float32, rec *HitRecord) bool {
 			rec.T = p
 			rec.P = r.PatT(rec.T)
 			rec.N = rec.P.Sub(s.Center).Div(s.Radius)
+			rec.M = s.M
 			return true
 		}
 	}
