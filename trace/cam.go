@@ -11,7 +11,7 @@ type Cam struct {
 	LensRadius float32
 }
 
-func (c Cam) GetRay(s float32, t float32) Ray {
+func (c Cam) getRay(s float32, t float32) Ray {
 	rd := RandUnitDisk().Mul(c.LensRadius)
 	offset := c.u.Mul(rd.X).Add(c.v.Mul(rd.Y))
 	origin := c.Origin.Add(offset)

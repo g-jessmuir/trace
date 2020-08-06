@@ -1,15 +1,31 @@
 package trace
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math"
 	"math/rand"
 )
 
+// Args contains the settings for rendering
+type Args struct {
+	World  HitList
+	Nx     int
+	Ny     int
+	Ns     int
+	Camera Cam
+}
+
+type Pixel struct {
+	r, g, b byte
+	x, y    int
+}
+
+// randomScene creates a scene that mimics the
 func randomScene() HitList {
 	n := 500
-	list := make(HitList, n+1)
+	list := make(HitList, n)
 	list[0] = Sphere{Vec{0, -1000, 0}, 1000, Lambertian{Vec{0.5, 0.5, 0.5}}}
 	index := 1
 	for i := -11; i < 11; i++ {
@@ -71,43 +87,82 @@ func getColor(r Ray, hl HitList, depth int) Vec {
 }
 
 // Trace returns a pointer to the traced image
-func Trace() *image.NRGBA {
-	nx := 200
-	ny := 100
-	ns := 100
-	img := image.NewNRGBA(image.Rect(0, 0, nx, ny))
-	lookFrom := Vec{12, 2, 5}
-	lookAt := Vec{0, 0.5, 0}
-	distToFocus := lookFrom.Sub(lookAt).Len()
-	cam := CreateCam(20, float32(nx)/float32(ny), lookFrom, lookAt, Vec{0, 1, 0}, 0.2, distToFocus)
-	// hl := HitList{
-	// 	Sphere{Vec{0, 0, -1}, 0.5, Lambertian{Vec{0.1, 0.2, 0.5}}},
-	// 	Sphere{Vec{0, -100.5, -1}, 100, Lambertian{Vec{0.8, 0.8, 0.0}}},
-	// 	Sphere{Vec{1, 0, -1}, 0.5, Metal{Vec{0.8, 0.6, 0.2}, 0.3}},
-	// 	Sphere{Vec{-1, 0, -1}, 0.5, Dielec{1.5}},
-	// 	Sphere{Vec{-1, 0, -1}, -0.45, Dielec{1.5}},
-	// }
-
-	hl := randomScene()
-
+func Trace(args Args, i int, j int, output chan Pixel) {
 	fctob := func(f float32) byte { return byte(255.99 * f) }
-	for j := 0; j < ny; j++ {
-		for i := 0; i < nx; i++ {
-			var col Vec
-			for s := 0; s < ns; s++ {
-				u := (float32(i) + rand.Float32()) / float32(nx)
-				v := (float32(j) + rand.Float32()) / float32(ny)
-				r := cam.GetRay(u, v)
-				col = col.Add(getColor(r, hl, 0))
-			}
-			col = col.Div(float32(ns))
-			col = Vec{Sqrt32(col.X), Sqrt32(col.Y), Sqrt32(col.Z)}
-			ir := fctob(col.X)
-			ig := fctob(col.Y)
-			ib := fctob(col.Z)
-			img.Set(i, ny-j-1, color.NRGBA{ir, ig, ib, 255})
+	var col Vec
+	for s := 0; s < args.Ns; s++ {
+		u := (float32(i) + rand.Float32()) / float32(args.Nx)
+		v := (float32(j) + rand.Float32()) / float32(args.Ny)
+		r := args.Camera.getRay(u, v)
+		col = col.Add(getColor(r, args.World, 0))
+	}
+	col = col.Div(float32(args.Ns))
+	col = Vec{Sqrt32(col.X), Sqrt32(col.Y), Sqrt32(col.Z)}
+	ir := fctob(col.X)
+	ig := fctob(col.Y)
+	ib := fctob(col.Z)
+	output <- Pixel{r: ir, g: ig, b: ib, x: i, y: j}
+}
+
+func worker(args Args, input chan Pixel, output chan Pixel, id int) {
+	for {
+		select {
+		case work := <-input:
+			// fmt.Println("worker", id, " working on", work.x, work.y)
+			Trace(args, work.x, work.y, output)
+		default:
+			return
 		}
 	}
+}
 
+// GoTrace accumulates multiple traces
+func GoTrace(threads int, traceArgs *Args) *image.NRGBA {
+	var args Args
+	if traceArgs == nil {
+		nx := 400
+		ny := 200
+		ns := 1
+		lookFrom := Vec{12, 2, 5}
+		lookAt := Vec{0, 0.5, 0}
+		distToFocus := lookFrom.Sub(lookAt).Len()
+		cam := CreateCam(15, float32(nx)/float32(ny), lookFrom, lookAt, Vec{0, 1, 0}, 0.2, distToFocus)
+		args = Args{
+			World:  randomScene(),
+			Nx:     nx,
+			Ny:     ny,
+			Ns:     ns,
+			Camera: cam,
+		}
+	} else {
+		args = *traceArgs
+	}
+	work := make(chan Pixel, args.Nx*args.Ny)
+	acc := make(chan Pixel, args.Nx*args.Ny)
+	img := image.NewNRGBA(image.Rect(0, 0, args.Nx, args.Ny))
+	for j := 0; j < args.Ny; j++ {
+		for i := 0; i < args.Nx; i++ {
+			work <- Pixel{x: i, y: j}
+		}
+	}
+	for i := 0; i < threads; i++ {
+		go worker(args, work, acc, i)
+	}
+	for c := 0; c < args.Nx*args.Ny; c++ {
+		p := <-acc
+		img.Set(p.x, args.Ny-p.y-1, color.NRGBA{p.r, p.g, p.b, 255})
+		if c%(args.Nx*args.Ny/5) == 0 {
+			fmt.Println("done%:", float32(c)/float32(args.Nx*args.Ny))
+			// f, err := os.Create("client/img.png")
+			// if err != nil {
+			// 	panic(err)
+			// }
+
+			// if err = png.Encode(f, img); err != nil {
+			// 	f.Close()
+			// 	panic(err)
+			// }
+		}
+	}
 	return img
 }

@@ -37,53 +37,6 @@ func (v Vec) VMul(o Vec) Vec {
 	return Vec{v.X * o.X, v.Y * o.Y, v.Z * o.Z}
 }
 
-// VDiv divides v by o component-wise and returns the result
-func (v Vec) VDiv(o Vec) Vec {
-	return Vec{v.X / o.X, v.Y / o.Y, v.Z / o.Z}
-}
-
-// Adda adds o to v and assigns the result to v
-func (v Vec) Adda(o *Vec) {
-	v.X += o.X
-	v.Y += o.Y
-	v.Z += o.Z
-}
-
-// Suba subtracts o from v and assigns the result to v
-func (v *Vec) Suba(o *Vec) {
-	v.X -= o.X
-	v.Y -= o.Y
-	v.Z -= o.Z
-}
-
-// Mula mutliples v by o component-wise and assigns the result to v
-func (v *Vec) Mula(o *Vec) {
-	v.X *= o.X
-	v.Y *= o.Y
-	v.Z *= o.Z
-}
-
-// Diva divides v by o component-wise and assigns the result to v
-func (v *Vec) Diva(o *Vec) {
-	v.X /= o.X
-	v.Y /= o.Y
-	v.Z /= o.Z
-}
-
-// SMula multiplies v by scalar f and assigns the result to v
-func (v *Vec) SMula(f float32) {
-	v.X *= f
-	v.Y *= f
-	v.Z *= f
-}
-
-// SDiva divides v by scalar f and assigns the result to v
-func (v *Vec) SDiva(f float32) {
-	v.X /= f
-	v.Y /= f
-	v.Z /= f
-}
-
 // Len returns the length of v
 func (v Vec) Len() float32 {
 	return float32(math.Sqrt(float64(v.X*v.X + v.Y*v.Y + v.Z*v.Z)))
@@ -97,14 +50,16 @@ func (v Vec) SqrLen() float32 {
 // Unit returns a new unit vector of v
 func (v Vec) Unit() Vec {
 	l := v.Len()
-	v.SDiva(l)
+	v = v.Div(l)
 	return v
 }
 
+// Dot returns the dot product of v and  o
 func (v Vec) Dot(o Vec) float32 {
 	return v.X*o.X + v.Y*o.Y + v.Z*o.Z
 }
 
+// Cross returns the cross product of v and o
 func (v Vec) Cross(o Vec) Vec {
 	return Vec{
 		v.Y*o.Z - v.Z*o.Y,
@@ -113,10 +68,12 @@ func (v Vec) Cross(o Vec) Vec {
 	}
 }
 
+// Reflect mirrors v across normal n
 func (v Vec) Reflect(n Vec) Vec {
 	return v.Sub(n.Mul(2 * v.Dot(n)))
 }
 
+// Refract refracts the ray according to Snell's law
 func (v Vec) Refract(n Vec, niByNt float32) (Vec, bool) {
 	uv := v.Unit()
 	dt := uv.Dot(n)
