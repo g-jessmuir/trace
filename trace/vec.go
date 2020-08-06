@@ -17,6 +17,11 @@ func (v Vec) Sub(o Vec) Vec {
 	return Vec{v.X - o.X, v.Y - o.Y, v.Z - o.Z}
 }
 
+// Neg returns the negative v
+func (v Vec) Neg() Vec {
+	return Vec{-v.X, -v.Y, -v.Z}
+}
+
 // Mul multiplies v by f and returns the result
 func (v Vec) Mul(f float32) Vec {
 	return Vec{v.X * f, v.Y * f, v.Z * f}
@@ -98,6 +103,14 @@ func (v Vec) Unit() Vec {
 
 func (v Vec) Dot(o Vec) float32 {
 	return v.X*o.X + v.Y*o.Y + v.Z*o.Z
+}
+
+func (v Vec) Cross(o Vec) Vec {
+	return Vec{
+		v.Y*o.Z - v.Z*o.Y,
+		v.Z*o.X - v.X*o.Z,
+		v.X*o.Y - v.Y*o.X,
+	}
 }
 
 func (v Vec) Reflect(n Vec) Vec {

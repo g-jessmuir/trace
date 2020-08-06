@@ -7,6 +7,51 @@ import (
 	"math/rand"
 )
 
+func randomScene() HitList {
+	n := 500
+	list := make(HitList, n+1)
+	list[0] = Sphere{Vec{0, -1000, 0}, 1000, Lambertian{Vec{0.5, 0.5, 0.5}}}
+	index := 1
+	for i := -11; i < 11; i++ {
+		for j := -11; j < 11; j++ {
+			chooseMat := rand.Float32()
+			center := Vec{float32(i) + 0.9*rand.Float32(), 0.2, float32(j) + 0.9*rand.Float32()}
+			if center.Sub(Vec{4, 0.2, 0}).Len() > 0.9 {
+				if chooseMat < 0.8 {
+					// diffuse
+					col := Vec{
+						rand.Float32() * rand.Float32(),
+						rand.Float32() * rand.Float32(),
+						rand.Float32() * rand.Float32(),
+					}
+					list[index] = Sphere{center, 0.2, Lambertian{col}}
+					index++
+				} else if chooseMat < 0.95 {
+					// metal
+					col := Vec{
+						0.5 * (1 + rand.Float32()),
+						0.5 * (1 + rand.Float32()),
+						0.5 * (1 + rand.Float32()),
+					}
+					list[index] = Sphere{center, 0.2, Metal{col, 0.3 * rand.Float32()}}
+					index++
+				} else {
+					// glass
+					list[index] = Sphere{center, 0.2, Dielec{1.5}}
+					index++
+				}
+			}
+		}
+	}
+	list[index] = Sphere{Vec{0, 1, 0}, 1, Dielec{1.5}}
+	index++
+	list[index] = Sphere{Vec{-4, 1, 0}, 1, Lambertian{Vec{0.2, 0.5, 0.3}}}
+	index++
+	list[index] = Sphere{Vec{4, 1, 0}, 1, Metal{Vec{0.7, 0.6, 0.5}, 0.0}}
+	index++
+	return list[:index]
+}
+
 func getColor(r Ray, hl HitList, depth int) Vec {
 	var rec HitRecord
 	if hl.Hit(r, 0.001, math.MaxFloat32, &rec) {
@@ -31,18 +76,20 @@ func Trace() *image.NRGBA {
 	ny := 100
 	ns := 100
 	img := image.NewNRGBA(image.Rect(0, 0, nx, ny))
-	cam := Cam{
-		Origin:     Vec{0, 0, 0},
-		LowerLeft:  Vec{-2, -1, -1},
-		Horizontal: Vec{4, 0, 0},
-		Vertical:   Vec{0, 2, 0},
-	}
-	hl := HitList{
-		Sphere{Vec{0, 0, -1}, 0.5, Lambertian{Vec{0.1, 0.2, 0.5}}},
-		Sphere{Vec{0, -100.5, -1}, 100, Lambertian{Vec{0.8, 0.8, 0.0}}},
-		Sphere{Vec{1, 0, -1}, 0.5, Metal{Vec{0.8, 0.6, 0.2}, 0.3}},
-		Sphere{Vec{-1, 0, -1}, 0.5, Dielec{1.5}},
-	}
+	lookFrom := Vec{12, 2, 5}
+	lookAt := Vec{0, 0.5, 0}
+	distToFocus := lookFrom.Sub(lookAt).Len()
+	cam := CreateCam(20, float32(nx)/float32(ny), lookFrom, lookAt, Vec{0, 1, 0}, 0.2, distToFocus)
+	// hl := HitList{
+	// 	Sphere{Vec{0, 0, -1}, 0.5, Lambertian{Vec{0.1, 0.2, 0.5}}},
+	// 	Sphere{Vec{0, -100.5, -1}, 100, Lambertian{Vec{0.8, 0.8, 0.0}}},
+	// 	Sphere{Vec{1, 0, -1}, 0.5, Metal{Vec{0.8, 0.6, 0.2}, 0.3}},
+	// 	Sphere{Vec{-1, 0, -1}, 0.5, Dielec{1.5}},
+	// 	Sphere{Vec{-1, 0, -1}, -0.45, Dielec{1.5}},
+	// }
+
+	hl := randomScene()
+
 	fctob := func(f float32) byte { return byte(255.99 * f) }
 	for j := 0; j < ny; j++ {
 		for i := 0; i < nx; i++ {

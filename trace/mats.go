@@ -1,5 +1,7 @@
 package trace
 
+import "math/rand"
+
 type Mat interface {
 	// TODO: change scatter function to just return attenuation and scattered
 	Scatter(rIn Ray, rec *HitRecord, attenuation *Vec, scattered *Ray) bool
@@ -37,18 +39,28 @@ func (d Dielec) Scatter(rIn Ray, rec *HitRecord, attenuation *Vec, scattered *Ra
 	reflected := rIn.Dir.Reflect(rec.N)
 	var niByNt float32
 	*attenuation = Vec{1, 1, 1}
+	var reflectProb float32
+	var cosine float32
 	if rIn.Dir.Dot(rec.N) > 0 {
-		outNorm = Vec{0, 0, 0}.Sub(rec.N)
+		outNorm = rec.N.Neg()
 		niByNt = d.RefIdx
+		cosine = d.RefIdx * rIn.Dir.Dot(rec.N) / rIn.Dir.Len()
 	} else {
 		outNorm = rec.N
 		niByNt = 1 / d.RefIdx
+		cosine = -rIn.Dir.Dot(rec.N) / rIn.Dir.Len()
 	}
-	if refracted, didHit := rIn.Dir.Refract(outNorm, niByNt); didHit {
-		*scattered = Ray{rec.P, refracted}
+	refracted, didHit := rIn.Dir.Refract(outNorm, niByNt)
+	if didHit {
+		reflectProb = Schlick(cosine, d.RefIdx)
 	} else {
 		*scattered = Ray{rec.P, reflected}
-		return false
+		reflectProb = 1.0
+	}
+	if rand.Float32() < reflectProb {
+		*scattered = Ray{rec.P, reflected}
+	} else {
+		*scattered = Ray{rec.P, refracted}
 	}
 	return true
 }
