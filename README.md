@@ -1,6 +1,7 @@
 # Trace
 A golang based path tracer with a simple web interface.
 Path tracing based on Peter Shirley's [Ray Tracing in One Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html).
+
 ![Ray trace showcase](https://github.com/g-jessmuir/trace/blob/master/samples/gotrace.gif)
 
 ## About
