@@ -9,11 +9,17 @@ import (
 	"image/jpeg"
 	"math"
 	"math/rand"
-	"os"
 	"time"
 )
 
-// Args contains the settings for rendering
+// Settings contains the external settings for rendering
+type Settings struct {
+	Seed    int
+	Samples int
+	Threads int
+}
+
+// Args contains the internal args for rendering
 type Args struct {
 	World  HitList
 	Nx     int
@@ -26,52 +32,6 @@ type pixel struct {
 	r, g, b byte
 	x, y    int
 }
-
-// randomScene creates a scene that mimics the scene in the book
-// func randomScene() HitList {
-// 	n := 500
-// 	list := make(HitList, n)
-// 	list[0] = Sphere{Vec{0, -500, 0}, 500, Lambertian{Vec{0.8, 0.8, 0.8}}}
-// 	index := 1
-// 	for i := -11; i < 11; i++ {
-// 		for j := -11; j < 11; j++ {
-// 			chooseMat := rand.Float32()
-// 			center := Vec{float32(i) + 0.9*rand.Float32(), 0.2, float32(j) + 0.9*rand.Float32()}
-// 			if center.Sub(Vec{4, 0.2, 0}).Len() > 0.9 {
-// 				if chooseMat < 0.8 {
-// 					// diffuse
-// 					col := Vec{
-// 						rand.Float32() * rand.Float32(),
-// 						rand.Float32() * rand.Float32(),
-// 						rand.Float32() * rand.Float32(),
-// 					}
-// 					list[index] = Sphere{center, 0.2, Lambertian{col}}
-// 					index++
-// 				} else if chooseMat < 0.95 {
-// 					// metal
-// 					col := Vec{
-// 						0.5 * (1 + rand.Float32()),
-// 						0.5 * (1 + rand.Float32()),
-// 						0.5 * (1 + rand.Float32()),
-// 					}
-// 					list[index] = Sphere{center, 0.2, Metal{col, 0.3 * rand.Float32()}}
-// 					index++
-// 				} else {
-// 					// glass
-// 					list[index] = Sphere{center, 0.2, Dielec{1.5}}
-// 					index++
-// 				}
-// 			}
-// 		}
-// 	}
-// 	list[index] = Sphere{Vec{0, 1, 0}, 1, Dielec{1.5}}
-// 	index++
-// 	list[index] = Sphere{Vec{-4, 1, 0}, 1, Lambertian{Vec{0.2, 0.5, 0.3}}}
-// 	index++
-// 	list[index] = Sphere{Vec{4, 1, 0}, 1, Metal{Vec{0.7, 0.6, 0.5}, 0.0}}
-// 	index++
-// 	return list[:index]
-// }
 
 // A central metal sphere surrounded by 6 lambertian, dielectric, and metal spheres
 func randomScene() HitList {
@@ -156,11 +116,11 @@ func imgToBase64(img *image.NRGBA) string {
 }
 
 // GoTrace accumulates multiple traces
-func GoTrace(seed int, threads int) *image.NRGBA {
-	rand.Seed(int64(seed))
+func GoTrace(settings Settings, updater chan string, endSignal chan int) {
+	rand.Seed(int64(settings.Seed))
 	nx := 500
 	ny := 500
-	ns := 50
+	ns := settings.Samples
 	lookFrom := Vec{2.5, 2, 2}
 	lookAt := Vec{0, 1.0, 0}
 	distToFocus := lookFrom.Sub(lookAt).Len()
@@ -182,7 +142,7 @@ func GoTrace(seed int, threads int) *image.NRGBA {
 			work <- pixel{x: i, y: j}
 		}
 	}
-	for i := 0; i < threads; i++ {
+	for i := 0; i < settings.Threads; i++ {
 		go worker(args, work, acc, i)
 	}
 	periodicWrite := time.After(time.Second)
@@ -192,18 +152,12 @@ func GoTrace(seed int, threads int) *image.NRGBA {
 			img.Set(p.x, args.Ny-p.y-1, color.NRGBA{p.r, p.g, p.b, 255})
 		case <-periodicWrite:
 			fmt.Println("% done:", float32(c)/float32(args.Nx*args.Ny)*100)
-			// send this over websocket or whatever
-			// baseString := imgToBase64(img)
-			f, err := os.Create("client/img.jpg")
-			if err != nil {
-				panic(err)
-			}
-			if err = jpeg.Encode(f, img, nil); err != nil {
-				f.Close()
-				panic(err)
-			}
+			baseString := imgToBase64(img)
+			updater <- baseString
 			periodicWrite = time.After(time.Second)
 		}
 	}
-	return img
+	baseString := imgToBase64(img)
+	updater <- baseString
+	endSignal <- 0
 }

@@ -9,23 +9,29 @@ $(function () {
     }
 
     function initWS() {
-        var socket = new WebSocket("ws://localhost:9090/ws"),
+        var socket = new WebSocket("ws://localhost:8080/ws"),
             container = $("#container")
-        socket.onopen = function() {
-            container.append("<p>Socket is open</p>");
-        };
         socket.onmessage = function (e) {
-            container.append("<p> Got some shit:" + e.data + "</p>");
+            var msg = JSON.parse(e.data);
+            var val = msg.data;
+            container.html("")
+            if ($("#rendering").length == 0) {
+                container.append(`<img id="rendering"/>`);
+            }
+            $("#rendering").attr("src", `data:image/png;base64,${val}`);
+            if (msg.status == "done") {
+                container.append("<p>Finished!</p>");
+            }
         }
-        socket.onclose = function () {
-            container.append("<p>Socket closed</p>");
-        }
-
         return socket;
     }
 
-    $("#sendBtn").click(function (e) {
+    $("#startBtn").click(function (e) {
         e.preventDefault();
-        ws.send(JSON.stringify({ Num: parseInt($("#numberfield").val()) }));
+        ws.send(JSON.stringify({
+            Seed: parseInt($("#seedField").val()),
+            Samples: parseInt($("#samplesField").val()),
+            Threads: parseInt($("#threadsField").val())
+        }));
     });
 });

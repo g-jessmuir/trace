@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html>
+    <header>
+        <title>Go Trace</title>
+    </header>
     <body>
         <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
         <script type="text/javascript" src="scripts.js"></script>
         <h1>
             Trace
         </h1>
-        <img src="img.png"/>
-        <button type="button" id="sendBtn">Send</button>
+        <form>
+            <label for="seedField">Seed</label>
+            <input type="text" id="seedField" value="12345"/>
+            <br/>
+            <label for="samplesField">Samples</label>
+            <input type="text" id="samplesField" value="40"/>
+            <br/>
+            <label for="threadsField">Goroutines</label>
+            <input type="text" id="threadsField" value="4"/>
+            <br/><br/>
+            <button type="button" id="startBtn">Start</button>
+        </form>
         <div id="container"></div>
     </body>
 </html>
